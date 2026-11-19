@@ -480,7 +480,8 @@ The settings button on the menu bar in reception opens settings: the style, the 
 the office and reception, not the terminal), whether the terminal opens as a
 split panel beside the office (the default) or takes the full window, the
 split panel width, the workspace sidebar, the editor command for "Open in
-editor", the alert sound, plan usage (what it shows and how often it checks), and the two orchestrator options above (boss
+editor", the alert sound, plan usage (what it shows and how often it checks), updates (Ask or Automatic, see
+[the Dock app](#the-dock-app-and-updates)), and the two orchestrator options above (boss
 instructions and QA review). The ⤢ button in the terminal header toggles split
 and full on the spot. Dragging the divider between the office and the split
 terminal sets the same panel width (the slider follows); double-click it to
@@ -521,6 +522,113 @@ When nothing listens on the socket at launch, it starts `herdr server` there
 itself and leaves it running after it quits; a later outage is left alone.
 Turn this off with "Start herdr" in settings. The server's output goes to
 `herdr-autostart.log` in the app's data folder.
+
+## The Dock app and updates
+
+`npm run install-app` sets up a Herdquarters.app you can keep in the Dock, so
+you no longer need `npm start`. It clones the repo into a checkout the app owns,
+`~/Library/Application Support/Herdquarters/app` (never the one you ran it
+from), installs its packages there, and builds `~/Applications/Herdquarters.app`
+around it (`--out`, `--root` and `--remote` change those). The checkout tracks
+`https://github.com/erikedling/herdquarters.git`, so its hourly fetch needs no
+SSH key; `--remote` points it elsewhere, such as a fork. Quit `npm start`,
+open the app and drag it to the Dock. Run it again to rebuild the app; the
+checkout and its update state are kept. `--out` must name a `.app`, and an
+existing one is only replaced if this script built it.
+
+To try a branch that is not merged yet, install with `--branch`:
+
+```sh
+npm run install-app -- --branch fregus/some-change
+```
+
+The app then runs that branch and offers what is pushed to it, the same way it
+does for `main`. A rerun keeps the branch the checkout tracks. To go back to
+`main`, run `npm run install-app -- --reset`; switching straight to another
+branch also needs `--reset`. When the branch is merged and deleted, the app
+stops finding updates and says so; run `npm run install-app -- --reset` to go
+back to main.
+
+The app is a copy of Electron's own bundle with the name and icon, signed ad
+hoc (`scripts/make-app.js`). An app built on your Mac is not quarantined, so it
+opens without an Apple Developer ID. Its code is `shell/bootstrap.js`, which
+prepares the checkout and then runs that checkout's `main.js`, so the app uses
+the same data folder (`~/Library/Application Support/agent-office`) as
+`npm start`: settings, orchestrators, PiPi's memory and the notes are all already
+there. Only one of the two runs at a time; opening the second focuses the first.
+
+An app opened from the Dock gets the system's short PATH. At launch the
+bootstrap asks your shell for its PATH (`$SHELL -ilc`, interactive so `.zshrc`
+counts, 5 s at most; it usually takes about a second) and puts it first, so
+herdr, `claude`, `codex`, `gh`, `git` and `npm` are found as in a terminal.
+
+**Updates.** The app fetches `origin/main` (or its `--branch`) 30 s after
+launch and then every hour, and sorts what came in by what applying it takes (`updater.js`):
+
+- Only `renderer/`, docs, tests and other files the app never loads: checked out
+  and applied with a window reload. The terminal that was open opens again.
+  Agents, herdr and PiPi carry on; only an open dialog or unsent text is lost.
+  A `renderer/` file the main process also requires (`note-rows.js`) is listed in
+  `MAIN_LOADS` in `updater.js`; `test/main-graph.test.js` walks main's requires
+  and fails when a new one is missing.
+- Anything `main.js` or `preload.js` loads (the main-process modules, the briefs,
+  scripts): needs a restart. It is checked out at the next launch, before
+  `main.js` loads, so a running app never mixes old and new files.
+- `shell/` changed: as above. The app runs its own copy of `shell/`, so at that
+  launch it checks that each new file parses, swaps them into the bundle, signs
+  it again and starts over. The bundle's entry point is `shell/loader.js`, which
+  is never swapped: the previous set waits in `shell.prev` next to `state.json`
+  (outside the bundle, so its signature stays valid) until a window has come up, and if the new `bootstrap.js` throws, or six launches pass
+  without a window, it puts the previous set back and rolls the commit back.
+- `package-lock.json` changed: as above, with `npm ci` at that launch. The old
+  `node_modules` is moved aside first and put back if the install fails, and
+  `state.json` records which lockfile it was installed from, so an install that
+  was cut short is done again at the next launch.
+- Another Electron major: as above, and the app downloads that Electron and
+  rebuilds itself first, which can take a few minutes. It tries once per commit;
+  if the app still does not match after that, it goes back to the last good one.
+
+A launch that has to install or rebuild shows a small *Updating Herdquarters…*
+window while it works, then starts again. The window cannot be closed, and ⌘Q
+asks first: **Stop and quit** stops npm, puts the old `node_modules` back and
+quits on the version it had.
+
+Settings > General > Updates picks **Ask** (the default) or **Automatic**. Ask
+shows a bar under the top bar: *Update available* with the changes (the PR
+titles), **Update now** and **Later** (hidden until something newer comes).
+Automatic applies reload-only updates by itself once nothing is going on: no
+dialog or settings open, no half-typed text, no terminal focused and no key
+pressed in the last minute. An update that needs a restart always asks, in both
+modes: **Restart now** (a few seconds, agents keep running) or **On next
+launch**. **Check now** in settings checks at once. A check that fails (offline)
+stays quiet and is tried again in an hour; settings shows the error.
+
+A version counts as started when the window says so: `renderer/ready.js`, the
+last script, checks that every part set itself up and that none of the window's
+own scripts (`renderer/*.js`) threw, and sends `renderer-ready`. A rejected call
+to something outside the window, such as herdr still starting or `gh` offline,
+is only logged. If a new commit throws while `main.js` loads, or the window
+has not said it is ready within 30 s, the bootstrap checks out the last commit
+that did start, starts again and says so in the bar. A live update that does not
+come up is undone the same way with a reload; if even that window does not come
+back, a dialog offers to restart. That commit is not offered
+again; the next one is. The checkout belongs to the app: if it has local changes,
+or commits that `origin/main` does not have, updates stop and say why instead of
+dropping them. Its state is in `state.json` next to it.
+
+If the app cannot get itself going again (a bad commit was marked good, the
+checkout has local changes or a history of its own), reset it from any source
+checkout:
+
+```sh
+npm run install-app -- --reset
+```
+
+That fetches, puts the app's checkout back on `origin/main`, or on the branch
+`--branch` names (local changes and commits there are dropped), clears the update state, installs the packages and
+builds the app again. The data folder is not touched.
+
+Contributors keep using `npm start`; the updater only runs inside the app.
 
 ## Dev flags
 

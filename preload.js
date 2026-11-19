@@ -92,6 +92,16 @@ contextBridge.exposeInMainWorld('office', {
     processInfo: (args) => ipcRenderer.invoke('pane-process-info', args),
     startAgent: (args) => ipcRenderer.invoke('agent-start', args),
   },
+  ready: () => ipcRenderer.send('renderer-ready'),
+  updates: {
+    get: () => ipcRenderer.invoke('update-get'),
+    check: () => ipcRenderer.invoke('update-check'),
+    apply: (target, opts) => ipcRenderer.invoke('update-apply', { target, keepPending: !!opts?.keepPending }),
+    restart: () => ipcRenderer.invoke('update-restart'),
+    later: () => ipcRenderer.invoke('update-later'),
+    dismiss: () => ipcRenderer.invoke('update-dismiss'),
+    onState: (cb) => { const h = (_e, s) => cb(s); ipcRenderer.on('update-state', h); return () => ipcRenderer.removeListener('update-state', h); },
+  },
   term: {
     open: (opts) => ipcRenderer.invoke('term-open', opts),
     input: (id, data) => ipcRenderer.send('term-input', { id, data }),

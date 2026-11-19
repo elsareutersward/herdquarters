@@ -1,7 +1,7 @@
-// User settings: theme, UI scale, the orchestrator tabs' order, terminal layout, panel width, sidebar, editor, QA review, alert sound, herdr autostart, office animals, boss instructions, the assistant (on, name, kind of bird, morning time, days, dart board), plan usage in the status bar (on, what it shows, how often). Stored per machine.
+// User settings: theme, UI scale, the orchestrator tabs' order, terminal layout, panel width, sidebar, editor, QA review, alert sound, herdr autostart, updates, office animals, boss instructions, the assistant (on, name, kind of bird, morning time, days, dart board), plan usage in the status bar (on, what it shows, how often). Stored per machine.
 (function () {
   const KEY = 'agent-office.settings';
-  const DEFAULTS = { scale: 0.85, termLayout: 'split', panelWidth: 46, sidebar: true, sidebarWidth: 250, activeTab: 'office', tabOrder: null, orchRoot: '', orchAgent: 'claude', qa: false, alertSound: true, herdrAutostart: true, cats: true, dogs: true, petsHidden: false, instructions: '', editor: 'code', style: 'toybox', theme: 'midnight', mode: 'dark', assistant: true, assistantName: 'PiPi', pipiSpecies: 'theme', morning: '08:30', assistantDays: [1, 2, 3, 4, 5], dartBoard: false, usageMeter: true, usageInterval: 10, usageShow: 'remaining' };
+  const DEFAULTS = { scale: 0.85, termLayout: 'split', panelWidth: 46, sidebar: true, sidebarWidth: 250, activeTab: 'office', tabOrder: null, orchRoot: '', orchAgent: 'claude', qa: false, alertSound: true, herdrAutostart: true, cats: true, dogs: true, petsHidden: false, instructions: '', editor: 'code', style: 'toybox', theme: 'midnight', mode: 'dark', assistant: true, assistantName: 'PiPi', pipiSpecies: 'theme', morning: '08:30', assistantDays: [1, 2, 3, 4, 5], dartBoard: false, updateMode: 'ask', usageMeter: true, usageInterval: 10, usageShow: 'remaining' };
   let settings = { ...DEFAULTS };
   try { settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* keep defaults */ }
   // The paw that hid the animals is gone; Settings > Appearance turns them on
@@ -82,6 +82,7 @@
     for (const r of $pop.querySelectorAll('input[name=termLayout]')) r.checked = r.value === settings.termLayout;
     for (const r of $pop.querySelectorAll('input[name=sidebar]')) r.checked = r.value === (settings.sidebar ? 'on' : 'off');
     for (const r of $pop.querySelectorAll('input[name=mode]')) r.checked = r.value === settings.mode;
+    for (const r of $pop.querySelectorAll('input[name=updateMode]')) r.checked = r.value === (settings.updateMode === 'auto' ? 'auto' : 'ask');
     renderThemes();
     renderSpecies();
     const $qa = $pop.querySelector('#set-qa'); if ($qa) $qa.checked = !!settings.qa;
@@ -185,6 +186,7 @@
     if (e.target.name === 'termLayout') set({ termLayout: e.target.value });
     if (e.target.name === 'sidebar') set({ sidebar: e.target.value === 'on' });
     if (e.target.name === 'mode') set({ mode: e.target.value });
+    if (e.target.name === 'updateMode') { set({ updateMode: e.target.value }); window.officeUpdates?.modeChanged(); }
     if (e.target.id === 'set-assistant') set({ assistant: e.target.checked });
     if (e.target.id === 'set-dartboard') set({ dartBoard: e.target.checked });
     if (e.target.name === 'assistantDays') set({ assistantDays: [...$pop.querySelectorAll('input[name=assistantDays]:checked')].map((d) => Number(d.value)).sort((a, b) => a - b) });
