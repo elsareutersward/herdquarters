@@ -1,7 +1,7 @@
-// User settings: theme, UI scale, the orchestrator tabs' order, terminal layout, panel width, sidebar, editor, QA review, alert sound, herdr autostart, office animals, boss instructions, the assistant (on, name, morning time, days, dart board). Stored per machine.
+// User settings: theme, UI scale, the Move HQ location, the orchestrator tabs' order, terminal layout, panel width, sidebar, editor, QA review, alert sound, herdr autostart, office animals, boss instructions, the assistant (on, name, morning time, days, dart board). Stored per machine.
 (function () {
   const KEY = 'agent-office.settings';
-  const DEFAULTS = { scale: 0.85, termLayout: 'split', panelWidth: 46, sidebar: true, sidebarWidth: 250, activeTab: 'office', tabOrder: null, orchRoot: '', orchAgent: 'claude', qa: false, alertSound: true, herdrAutostart: true, cats: true, dogs: true, petsHidden: false, instructions: '', editor: 'code', style: 'toybox', theme: 'midnight', mode: 'dark', assistant: true, assistantName: 'PiPi', morning: '08:30', assistantDays: [1, 2, 3, 4, 5], dartBoard: false };
+  const DEFAULTS = { scale: 0.85, termLayout: 'split', panelWidth: 46, sidebar: true, sidebarWidth: 250, activeTab: 'office', tabOrder: null, orchRoot: '', orchAgent: 'claude', qa: false, alertSound: true, herdrAutostart: true, cats: true, dogs: true, petsHidden: false, instructions: '', editor: 'code', style: 'toybox', theme: 'midnight', mode: 'dark', assistant: true, assistantName: 'PiPi', morning: '08:30', assistantDays: [1, 2, 3, 4, 5], dartBoard: false, location: 'office', seasonal: true };
   let settings = { ...DEFAULTS };
   try { settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* keep defaults */ }
   // The paw that hid the animals is gone; Settings > Appearance turns them on
@@ -20,12 +20,26 @@
     document.body.classList.toggle('term-full', settings.termLayout === 'full');
     window.officeSidebar?.setVisible(settings.sidebar);
     window.officeBird?.setDartBoard?.(!!settings.dartBoard);
+    syncLocation();
     window.officeTerminal?.layoutChanged?.();
     window.officeRerender?.();
     syncAssistantName();
     syncForm();
     syncMain();
   }
+
+  // Move HQ: the place in effect today, when the style draws locations.
+  // Checked again each minute so a new day (a season, a surprise) shows up.
+  let locationDay = null;
+  const locationsOn = () => !!window.officeLocations?.applies(window.officeThemes?.styleById(settings.style).id);
+  function syncLocation() {
+    const L = window.officeLocations;
+    if (!L) return;
+    const now = new Date();
+    locationDay = L.dayNumber(now);
+    window.officeLocationArt?.set(locationsOn() ? L.inEffect(settings, now).id : 'office');
+  }
+  window.setInterval?.(() => { if (window.officeLocations?.dayNumber(new Date()) !== locationDay) apply(); }, 60000);
 
   // Main decides whether to start herdr, so it needs the setting from here.
   let sentAutostart = null;
@@ -76,6 +90,7 @@
     const $mo = $pop.querySelector('#set-morning'); if ($mo && document.activeElement !== $mo) $mo.value = settings.morning;
     for (const $d of $pop.querySelectorAll('input[name=assistantDays]')) $d.checked = days().includes(Number($d.value));
     const $dart = $pop.querySelector('#set-dartboard'); if ($dart) $dart.checked = !!settings.dartBoard;
+    renderLocations();
     const $snd = $pop.querySelector('#set-alert-sound'); if ($snd) $snd.checked = settings.alertSound !== false;
     const $cats = $pop.querySelector('#set-cats'); if ($cats) $cats.checked = !!settings.cats;
     const $dogs = $pop.querySelector('#set-dogs'); if ($dogs) $dogs.checked = !!settings.dogs;
@@ -116,11 +131,34 @@
     // The theme and dark/light only color Modern.
     $pop.querySelector('#set-theme-row')?.classList.toggle('disabled', current !== 'modern');
   }
+  // A card per location plus Surprise me; a badge on the one in effect today.
+  function renderLocations() {
+    const L = window.officeLocations, art = window.officeLocationArt;
+    const $grid = $pop.querySelector('#set-locations'); if (!$grid || !L || !art) return;
+    const on = locationsOn(), now = new Date();
+    const today = on && L.inEffect(settings, now).id;
+    const picked = L.pickOf(settings);
+    const html = [...L.LOCATIONS, L.SURPRISE].map((l) => `<button class="theme-card style-card loc-card ${l.id === picked ? 'active' : ''}" data-location="${l.id}" title="${l.name}">
+        <span class="theme-pv">${art.preview(l.id)}</span>${l.id === today && l.id !== picked ? '<span class="loc-badge">today</span>' : ''}
+        <span class="theme-name">${l.name}<small>${l.note}</small></span>
+      </button>`).join('');
+    if ($grid._html !== html) { $grid._html = html; $grid.innerHTML = html; }
+    const line = on && L.status(settings, now);
+    const $today = $pop.querySelector('#set-location-today');
+    if ($today) { $today.hidden = !line; $today.textContent = line || ''; }
+    const $off = $pop.querySelector('#set-hq-off'); if ($off) $off.hidden = on;
+    $pop.querySelector('#set-location-row')?.classList.toggle('disabled', !on);
+    $pop.querySelector('#set-seasonal-row')?.classList.toggle('disabled', !on);
+    const $seasonal = $pop.querySelector('#set-seasonal'); if ($seasonal) { $seasonal.checked = settings.seasonal !== false; $seasonal.disabled = !on; }
+  }
   function showSection(name) {
     for (const $t of $pop.querySelectorAll('.settings-tab')) $t.classList.toggle('active', $t.dataset.section === name);
     for (const $s of $pop.querySelectorAll('.settings-section')) $s.hidden = $s.dataset.section !== name;
   }
-  const open = () => { $pop.hidden = false; };
+  const open = (section) => {
+    if ($pop.querySelector(`.settings-section[data-section="${section}"]`)) showSection(section);
+    $pop.hidden = false;
+  };
   const close = () => { $pop.hidden = true; };
   $btn?.addEventListener('click', () => ($pop.hidden ? open() : close()));
   // A click on the dimmed backdrop closes it, a click in the window does not.
@@ -128,6 +166,7 @@
   $pop?.querySelector('#set-close')?.addEventListener('click', close);
   $pop?.querySelector('.settings-nav')?.addEventListener('click', (e) => { const $t = e.target.closest('.settings-tab'); if ($t) showSection($t.dataset.section); });
   $pop?.querySelector('#set-styles')?.addEventListener('click', (e) => { const $t = e.target.closest('.style-card'); if ($t) set({ style: $t.dataset.styleId }); });
+  $pop?.querySelector('#set-locations')?.addEventListener('click', (e) => { const $t = e.target.closest('.loc-card'); if ($t) set({ location: $t.dataset.location }); });
   $pop?.querySelector('#set-themes')?.addEventListener('click', (e) => { const $t = e.target.closest('.theme-card'); if ($t) set({ theme: $t.dataset.theme }); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$pop.hidden) close(); });
   // System mode follows the OS as it switches.
@@ -140,6 +179,7 @@
     if (e.target.name === 'mode') set({ mode: e.target.value });
     if (e.target.id === 'set-assistant') set({ assistant: e.target.checked });
     if (e.target.id === 'set-dartboard') set({ dartBoard: e.target.checked });
+    if (e.target.id === 'set-seasonal') set({ seasonal: e.target.checked });
     if (e.target.name === 'assistantDays') set({ assistantDays: [...$pop.querySelectorAll('input[name=assistantDays]:checked')].map((d) => Number(d.value)).sort((a, b) => a - b) });
     // QA review: new orchestrators get it from the wizard; running ones get the flag now.
     if (e.target.id === 'set-alert-sound') { set({ alertSound: e.target.checked }); if (e.target.checked) window.officeAlerts?.chime(); }

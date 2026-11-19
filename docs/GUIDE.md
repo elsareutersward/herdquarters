@@ -82,7 +82,7 @@ terminal panel has a blue bar. Clicking a pane opens it, clicking a repo or
 checkout scrolls the scene to it. The sidebar stays put when the terminal
 takes the full window. Toggle it with the sidebar button on the menu bar in reception, or in settings.
 
-Settings (**⚙**) opens a window with four sections: Appearance,
+Settings (**⚙**) opens a window with five sections: Appearance, Move HQ,
 Assistant, Agents and General. Appearance has ten color themes, each with a dark and a
 light version (or **System** to follow macOS). The terminal keeps its own colors.
 Drag its right edge to resize it; double-click the edge to reset the width.
@@ -424,6 +424,8 @@ board works with the assistant switched off.
 
 **Style** sets the shape of the whole app. **Toybox** is the default. **Modern** is the smooth, rounded look in your theme and dark/light mode. The five retro styles are pixel looks with hard edges, solid outlines and pixel fonts (`renderer/retro.css`, fonts bundled in `renderer/fonts/`, SIL Open Font License), and each brings its own colors, so the theme and mode only apply to Modern: **Workshop** (wood, cork and paper), **Quest** (16-bit RPG menus), **Handheld** (four shades of green), **Toybox** (the welcome screen's pastels) and **Workstation** (a beige early-90s desktop). The terminal keeps its own colors in every style. `OFFICE_DEV_SETTINGS='{"style":"quest"}'` opens in one.
 
+**Move HQ** moves the office somewhere else, just for looks: Office (as it always was), Garden, Space station, Beach club, North Pole, Under water, Midsommar meadow, Haunted mansion or Coffeehouse, or **Surprise me** for a new place each day (never the Office, never yesterday's). Each place has its own walls, floor, window, door, plants, rugs, idle animation and dart board, one thing everyone wears (a sun hat, a bubble helmet, sunglasses…) and touches for the cat and the dog; the status bubbles stay the same. **Seasonal visits** (on by default) take the office to the Haunted mansion Oct 24–31, the North Pole Dec 1–26 and the Midsommar meadow Jun 19–25, local time, then back to the pick; a visit wins over Surprise me. Locations show in Modern and Toybox; the other styles keep the Office. The logic is in `renderer/locations.js`, the art in `renderer/location-art.js`, the rugs in `renderer/decor.js`.
+
 
 The settings button on the menu bar in reception opens settings: the style, the theme, office size (zooms
 the office and reception, not the terminal), whether the terminal opens as a
@@ -478,7 +480,7 @@ Turn this off with "Start herdr" in settings. The server's output goes to
   `{"activeTab":"dark-mode"}` opens the fixture's orchestrator tab.
 - `OFFICE_ASSISTANT=talk|dream|idle|wave` sets the assistant's mood in fixture runs, `OFFICE_CHAT=1` opens its chat.
 - `OFFICE_MODAL=<create|closed|remove|orchestrator|archived|slack:<slug>> npm start` opens that dialog on launch;
-  `OFFICE_TOOLTIP=<pane_id>` shows a desk tooltip; `OFFICE_SETTINGS_OPEN=1` opens settings.
+  `OFFICE_TOOLTIP=<pane_id>` shows a desk tooltip; `OFFICE_SETTINGS_OPEN=1` opens settings (`=hq`, `=general`… at that section).
 - `OFFICE_OPEN=<pane_id> npm start` opens that desk's terminal on launch.
 - `OFFICE_CORKBOARD=big|note|both npm start` opens the big corkboard, the first note on the wall, or a note on the big board.
 - `OFFICE_USER_DATA=/tmp/agent-office-dev npm start` runs a second window beside the
