@@ -99,6 +99,10 @@
             <span class="settings-check-text">Name<small>What the bird is called, in the office and in its own words. Empty goes back to PiPi.</small></span>
             <input id="set-assistant-name" type="text" maxlength="24" spellcheck="false" placeholder="PiPi">
           </label>
+          <div class="settings-row">
+            <span>Bird<small class="settings-hint">Theme is the classic bird in your theme's accent color; the others are real species in their own plumage.</small></span>
+            <div id="set-species" class="theme-grid species-grid"></div>
+          </div>
           <label class="settings-row settings-check">
             <span class="settings-check-text">Morning brief<small>On its days from this time it greets you with what needs you today, your meetings and reminders.</small></span>
             <input id="set-morning" type="time">
@@ -150,10 +154,37 @@
             <span class="settings-check-text">Alert sound<small>A short chime when an ops agent raises an alert about a deploy.</small></span>
             <input id="set-alert-sound" type="checkbox">
           </label>
+          <div class="settings-row settings-check">
+            <label class="settings-check-text" for="set-usage">Usage limits<small>Claude and Codex plan usage in the status bar: how much of the 5-hour and weekly limits is left (or used), and when they reset. Read from the claude and codex CLIs, so nothing shows for one that is not installed.</small></label>
+            <span class="settings-pair">
+              <select id="set-usage-show" title="Show what is left of each limit, or what is used">
+                <option value="remaining">show remaining</option>
+                <option value="used">show used</option>
+              </select>
+              <select id="set-usage-interval" title="How often to check">
+                <option value="5">every 5 min</option>
+                <option value="10">every 10 min</option>
+                <option value="15">every 15 min</option>
+                <option value="30">every 30 min</option>
+              </select>
+              <input id="set-usage" type="checkbox">
+            </span>
+          </div>
           <label class="settings-row settings-check">
             <span class="settings-check-text">Start herdr<small>When herdr is not running as the app opens, start it in the background. It keeps running after the app quits.</small></span>
             <input id="set-herdr-autostart" type="checkbox">
           </label>
+          <div id="set-updates-row" class="settings-row settings-text">
+            <span class="settings-check-text">Updates<small>Ask shows what is new first. Automatic puts changes to the office in right away. A restart is always asked first.</small></span>
+            <div class="update-controls">
+              <div class="seg seg-inline">
+                <label><input type="radio" name="updateMode" value="ask"> Ask</label>
+                <label><input type="radio" name="updateMode" value="auto"> Automatic</label>
+              </div>
+              <button id="set-update-check" class="btn small" type="button">Check now</button>
+            </div>
+            <small id="set-updates-info" class="update-info"></small>
+          </div>
           <div class="settings-row settings-check">
             <span class="settings-check-text">Welcome tour<small>The short tour from the first launch: the boss, the team and the helpers.</small></span>
             <button id="set-welcome" class="btn small" type="button">Show</button>
@@ -163,6 +194,7 @@
     </div>
   </div>
 
+  <div id="updatebar" class="updatebar" role="status" hidden></div>
   <div id="alertbar" class="alertbar" role="alert" hidden></div>
   <div id="taskbar" class="taskbar" hidden></div>
   <div id="workspace" class="workspace">
@@ -219,9 +251,11 @@
       <span class="legend-item"><i class="dot done"></i>done</span>
       <span class="legend-item"><i class="dot idle"></i>idle</span>
     </div>
+    <button id="usage" class="usage" type="button" title="Plan usage: click for details" hidden></button>
     <div id="conn" class="conn">connecting…</div>
   </footer>
 
+  <div id="usage-pop" class="usage-pop" role="dialog" aria-label="Plan usage" hidden></div>
   <canvas id="bird-canvas" class="bird-canvas" aria-hidden="true"></canvas>
   <div id="bird" class="bird" title="Your assistant: click to chat, hold to pet, drag to move, fling to throw, double-click for a flip" hidden></div>
   <div id="bird-bubble" class="bird-bubble" hidden></div>
@@ -300,6 +334,7 @@
   <script src="alerts.js"></script>
   <script src="slack.js"></script>
   <script src="pipi-sprite.js"></script>
+  <script src="pipi-species.js"></script>
   <script src="backflip.js"></script>
   <script src="bird-drop.js"></script>
   <script src="bird-throw.js"></script>
@@ -311,8 +346,11 @@
   <script src="app.js"></script>
   <script src="tab-order.js"></script>
   <script src="tabs.js"></script>
+  <script src="usage.js"></script>
   <script src="settings.js"></script>
+  <script src="updates.js"></script>
   <script src="scenes.js"></script>
   <script src="welcome.js"></script>
+  <script src="ready.js"></script>
 </body>
 </html>

@@ -343,18 +343,30 @@ day, the office asks it to **dream**: fold the journal into the cards, merge
 and prune, delete old journal days. Then it starts a fresh session, so its
 context stays small.
 
-PiPi (`renderer/bird.js`, sprite frames in `renderer/pipi-sprite.js`) is
-drawn on a canvas over the office: shaded pixel art in the theme's accent
-color, with squash and stretch, a walk and a flap cycle and particles. It
-walks along the edges it perches on and flies between ticket cards, room
-signs, desks and reception, with a shadow under it. It watches the cursor and
-startles (dropping a feather) when you sweep past fast; hover to make it happy,
-hold to pet it (hearts), double-click for a flip. When a ticket has something
-waiting on you it pecks at that card; when a ticket's tasks are all done it
-celebrates there with confetti. It talks while it answers, yawns and
-stretches when it wakes up, gets sleepy late in the afternoon, and sleeps in
-its nest on top of the menu bar at night and while it dreams. For a due reminder or
-the morning brief it hovers under the top bar with a bubble.
+PiPi (`renderer/bird.js`, sprite frames in `renderer/pipi-sprite.js`) is drawn
+on a canvas over the office: shaded pixel art in the theme's accent color, or
+as a real bird. Pick one under **Settings → PiPi → Bird**: Theme (the
+default), European robin, blue tit, European goldfinch, common kingfisher,
+Eurasian bullfinch, northern cardinal, blue jay, scarlet macaw, rainbow
+lorikeet, Gouldian finch, budgerigar, cockatiel, painted bunting,
+lilac-breasted roller, keel-billed toucan, Atlantic puffin or Java sparrow.
+Each species (`renderer/pipi-species.js`) is a palette for its plumage plus
+its own crest, tail, beak, wing marks and head and body markings (the Java
+sparrow also its eyes, chest mark and puffed cheeks); a bird without a crest
+ruffles its head feathers instead. Every species does everything below, and
+the feathers it drops are its own colors. A saved species that no longer
+exists falls back to Theme. `npx electron scripts/pipi-previews.js <folder>`
+renders an animated preview of each species, a sheet of every pose and every
+species on every theme. It has squash and stretch, a walk and a flap cycle and
+particles. It walks along the edges it perches on and flies between ticket
+cards, room signs, desks and reception, with a shadow under it. It watches the
+cursor and startles (dropping a feather) when you sweep past fast; hover to
+make it happy, hold to pet it (hearts), double-click for a flip. When a ticket
+has something waiting on you it pecks at that card; when a ticket's tasks are
+all done it celebrates there with confetti. It talks while it answers, yawns
+and stretches when it wakes up, gets sleepy late in the afternoon, and sleeps
+in its nest on top of the menu bar at night and while it dreams. For a due
+reminder or the morning brief it hovers under the top bar with a bubble.
 
 ## The office
 
@@ -420,7 +432,46 @@ bird flies to the board. Reminders from before the corkboard
 (`assistant/reminders/`) move in as notes the first time they are read. The
 board works with the assistant switched off.
 
+## Plan usage
+
+The right end of the status bar shows how much of your Claude and Codex plan
+limits is left: a bar per window (5 hours and the week), the percentage
+(`84% left`), and the time left until it resets (`↺2h05`). The bars drain as
+you use the limit. Set it to show what is used instead (`16% used`, bars that
+fill up) in Settings > General. Either way, a bar turns amber when 25% or less
+is left and red at 10% or less.
+Click it for every window, per-model weeks included, with the exact reset
+times, when the numbers were checked, a ↻ to check now, and a warning when
+Claude's sign-in ends within a week.
+
+The numbers come from the CLIs themselves, so no token is read and nothing
+is sent anywhere new (`usage.js`):
+
+- **Claude**: `claude -p /usage --safe-mode` (no hooks, MCP servers, plugins
+  or CLAUDE.md) with session saving off, run in an empty `usage-probe` folder
+  in the app's data folder. It costs no tokens and takes about two seconds.
+- **Codex**: `codex app-server`, asking `account/rateLimits/read` and stopping it.
+
+A CLI that is not installed is left out; with neither, nothing shows. Signed out
+or on a plan without limits, the popover says so instead of showing 0%.
+When a check fails (offline, say), the last numbers stay, dimmed, with the time
+they are from, and that provider is tried again after 5, 10, then 30 minutes.
+The CLIs are found on `PATH` and in the usual install folders
+(`~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, `~/.npm-global/bin`),
+so a Dock launch finds them too.
+
+**Usage limits** in Settings > General turns it on and off (on by default),
+picks what it shows (remaining, the default, or used), and sets how often it
+checks: every 5, 10 (the default), 15 or 30 minutes.
+It also checks when the window gets focus and the numbers are over two minutes old.
+Turning it off, or quitting, stops a check that is still running.
+
 ## Settings
+
+**PiPi** holds the assistant's settings: on or off, its name, which bird it
+is (Theme, in the accent color, is the default), the morning brief's time
+and days, and the dart board. **Reset to defaults** sets every section back,
+PiPi's bird to Theme too.
 
 **Style** sets the shape of the whole app. **Toybox** is the default. **Modern** is the smooth, rounded look in your theme and dark/light mode. The five retro styles are pixel looks with hard edges, solid outlines and pixel fonts (`renderer/retro.css`, fonts bundled in `renderer/fonts/`, SIL Open Font License), and each brings its own colors, so the theme and mode only apply to Modern: **Workshop** (wood, cork and paper), **Quest** (16-bit RPG menus), **Handheld** (four shades of green), **Toybox** (the welcome screen's pastels) and **Workstation** (a beige early-90s desktop). The terminal keeps its own colors in every style. `OFFICE_DEV_SETTINGS='{"style":"quest"}'` opens in one.
 
@@ -431,7 +482,8 @@ The settings button on the menu bar in reception opens settings: the style, the 
 the office and reception, not the terminal), whether the terminal opens as a
 split panel beside the office (the default) or takes the full window, the
 split panel width, the workspace sidebar, the editor command for "Open in
-editor", the alert sound, and the two orchestrator options above (boss
+editor", the alert sound, plan usage (what it shows and how often it checks), updates (Ask or Automatic, see
+[the Dock app](#the-dock-app-and-updates)), and the two orchestrator options above (boss
 instructions and QA review). The ⤢ button in the terminal header toggles split
 and full on the spot. Dragging the divider between the office and the split
 terminal sets the same panel width (the slider follows); double-click it to
@@ -473,6 +525,113 @@ itself and leaves it running after it quits; a later outage is left alone.
 Turn this off with "Start herdr" in settings. The server's output goes to
 `herdr-autostart.log` in the app's data folder.
 
+## The Dock app and updates
+
+`npm run install-app` sets up a Herdquarters.app you can keep in the Dock, so
+you no longer need `npm start`. It clones the repo into a checkout the app owns,
+`~/Library/Application Support/Herdquarters/app` (never the one you ran it
+from), installs its packages there, and builds `~/Applications/Herdquarters.app`
+around it (`--out`, `--root` and `--remote` change those). The checkout tracks
+`https://github.com/erikedling/herdquarters.git`, so its hourly fetch needs no
+SSH key; `--remote` points it elsewhere, such as a fork. Quit `npm start`,
+open the app and drag it to the Dock. Run it again to rebuild the app; the
+checkout and its update state are kept. `--out` must name a `.app`, and an
+existing one is only replaced if this script built it.
+
+To try a branch that is not merged yet, install with `--branch`:
+
+```sh
+npm run install-app -- --branch fregus/some-change
+```
+
+The app then runs that branch and offers what is pushed to it, the same way it
+does for `main`. A rerun keeps the branch the checkout tracks. To go back to
+`main`, run `npm run install-app -- --reset`; switching straight to another
+branch also needs `--reset`. When the branch is merged and deleted, the app
+stops finding updates and says so; run `npm run install-app -- --reset` to go
+back to main.
+
+The app is a copy of Electron's own bundle with the name and icon, signed ad
+hoc (`scripts/make-app.js`). An app built on your Mac is not quarantined, so it
+opens without an Apple Developer ID. Its code is `shell/bootstrap.js`, which
+prepares the checkout and then runs that checkout's `main.js`, so the app uses
+the same data folder (`~/Library/Application Support/agent-office`) as
+`npm start`: settings, orchestrators, PiPi's memory and the notes are all already
+there. Only one of the two runs at a time; opening the second focuses the first.
+
+An app opened from the Dock gets the system's short PATH. At launch the
+bootstrap asks your shell for its PATH (`$SHELL -ilc`, interactive so `.zshrc`
+counts, 5 s at most; it usually takes about a second) and puts it first, so
+herdr, `claude`, `codex`, `gh`, `git` and `npm` are found as in a terminal.
+
+**Updates.** The app fetches `origin/main` (or its `--branch`) 30 s after
+launch and then every hour, and sorts what came in by what applying it takes (`updater.js`):
+
+- Only `renderer/`, docs, tests and other files the app never loads: checked out
+  and applied with a window reload. The terminal that was open opens again.
+  Agents, herdr and PiPi carry on; only an open dialog or unsent text is lost.
+  A `renderer/` file the main process also requires (`note-rows.js`) is listed in
+  `MAIN_LOADS` in `updater.js`; `test/main-graph.test.js` walks main's requires
+  and fails when a new one is missing.
+- Anything `main.js` or `preload.js` loads (the main-process modules, the briefs,
+  scripts): needs a restart. It is checked out at the next launch, before
+  `main.js` loads, so a running app never mixes old and new files.
+- `shell/` changed: as above. The app runs its own copy of `shell/`, so at that
+  launch it checks that each new file parses, swaps them into the bundle, signs
+  it again and starts over. The bundle's entry point is `shell/loader.js`, which
+  is never swapped: the previous set waits in `shell.prev` next to `state.json`
+  (outside the bundle, so its signature stays valid) until a window has come up, and if the new `bootstrap.js` throws, or six launches pass
+  without a window, it puts the previous set back and rolls the commit back.
+- `package-lock.json` changed: as above, with `npm ci` at that launch. The old
+  `node_modules` is moved aside first and put back if the install fails, and
+  `state.json` records which lockfile it was installed from, so an install that
+  was cut short is done again at the next launch.
+- Another Electron major: as above, and the app downloads that Electron and
+  rebuilds itself first, which can take a few minutes. It tries once per commit;
+  if the app still does not match after that, it goes back to the last good one.
+
+A launch that has to install or rebuild shows a small *Updating Herdquarters…*
+window while it works, then starts again. The window cannot be closed, and ⌘Q
+asks first: **Stop and quit** stops npm, puts the old `node_modules` back and
+quits on the version it had.
+
+Settings > General > Updates picks **Ask** (the default) or **Automatic**. Ask
+shows a bar under the top bar: *Update available* with the changes (the PR
+titles), **Update now** and **Later** (hidden until something newer comes).
+Automatic applies reload-only updates by itself once nothing is going on: no
+dialog or settings open, no half-typed text, no terminal focused and no key
+pressed in the last minute. An update that needs a restart always asks, in both
+modes: **Restart now** (a few seconds, agents keep running) or **On next
+launch**. **Check now** in settings checks at once. A check that fails (offline)
+stays quiet and is tried again in an hour; settings shows the error.
+
+A version counts as started when the window says so: `renderer/ready.js`, the
+last script, checks that every part set itself up and that none of the window's
+own scripts (`renderer/*.js`) threw, and sends `renderer-ready`. A rejected call
+to something outside the window, such as herdr still starting or `gh` offline,
+is only logged. If a new commit throws while `main.js` loads, or the window
+has not said it is ready within 30 s, the bootstrap checks out the last commit
+that did start, starts again and says so in the bar. A live update that does not
+come up is undone the same way with a reload; if even that window does not come
+back, a dialog offers to restart. That commit is not offered
+again; the next one is. The checkout belongs to the app: if it has local changes,
+or commits that `origin/main` does not have, updates stop and say why instead of
+dropping them. Its state is in `state.json` next to it.
+
+If the app cannot get itself going again (a bad commit was marked good, the
+checkout has local changes or a history of its own), reset it from any source
+checkout:
+
+```sh
+npm run install-app -- --reset
+```
+
+That fetches, puts the app's checkout back on `origin/main`, or on the branch
+`--branch` names (local changes and commits there are dropped), clears the update state, installs the packages and
+builds the app again. The data folder is not touched.
+
+Contributors keep using `npm start`; the updater only runs inside the app.
+
 ## Dev flags
 
 - `OFFICE_FIXTURE=1 npm start` renders a fake session with every pose and many of the characters.
@@ -480,7 +639,9 @@ Turn this off with "Start herdr" in settings. The server's output goes to
   `{"activeTab":"dark-mode"}` opens the fixture's orchestrator tab.
 - `OFFICE_ASSISTANT=talk|dream|idle|wave` sets the assistant's mood in fixture runs, `OFFICE_CHAT=1` opens its chat.
 - `OFFICE_MODAL=<create|closed|remove|orchestrator|archived|slack:<slug>> npm start` opens that dialog on launch;
-  `OFFICE_TOOLTIP=<pane_id>` shows a desk tooltip; `OFFICE_SETTINGS_OPEN=1` opens settings (`=hq`, `=general`… at that section).
+  `OFFICE_TOOLTIP=<pane_id>` shows a desk tooltip; `OFFICE_SETTINGS_OPEN=1` opens settings, `=assistant` (or
+  `appearance`, `hq`, `agents`, `general`) on that section; `OFFICE_USAGE_OPEN=1` opens the plan usage popover.
+- Fixture runs show made-up plan usage; `OFFICE_USAGE_LIVE=1` reads the real `claude` and `codex` CLIs instead.
 - `OFFICE_OPEN=<pane_id> npm start` opens that desk's terminal on launch.
 - `OFFICE_CORKBOARD=big|note|both npm start` opens the big corkboard, the first note on the wall, or a note on the big board.
 - `OFFICE_USER_DATA=/tmp/agent-office-dev npm start` runs a second window beside the

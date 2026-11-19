@@ -1,12 +1,15 @@
-// User settings: theme, UI scale, the Move HQ location, the orchestrator tabs' order, terminal layout, panel width, sidebar, editor, QA review, alert sound, herdr autostart, office animals, boss instructions, the assistant (on, name, morning time, days, dart board). Stored per machine.
+// User settings: theme, UI scale, the orchestrator tabs' order, terminal layout, panel width, sidebar, editor, QA review, alert sound, herdr autostart, updates, office animals, boss instructions, the Move HQ location, the assistant (on, name, kind of bird, morning time, days, dart board), plan usage in the status bar (on, what it shows, how often). Stored per machine.
 (function () {
   const KEY = 'agent-office.settings';
-  const DEFAULTS = { scale: 0.85, termLayout: 'split', panelWidth: 46, sidebar: true, sidebarWidth: 250, activeTab: 'office', tabOrder: null, orchRoot: '', orchAgent: 'claude', qa: false, alertSound: true, herdrAutostart: true, cats: true, dogs: true, petsHidden: false, instructions: '', editor: 'code', style: 'toybox', theme: 'midnight', mode: 'dark', assistant: true, assistantName: 'PiPi', morning: '08:30', assistantDays: [1, 2, 3, 4, 5], dartBoard: false, location: 'office', seasonal: true };
+  const DEFAULTS = { scale: 0.85, termLayout: 'split', panelWidth: 46, sidebar: true, sidebarWidth: 250, activeTab: 'office', tabOrder: null, orchRoot: '', orchAgent: 'claude', qa: false, alertSound: true, herdrAutostart: true, cats: true, dogs: true, petsHidden: false, instructions: '', editor: 'code', style: 'toybox', theme: 'midnight', mode: 'dark', assistant: true, assistantName: 'PiPi', pipiSpecies: 'theme', morning: '08:30', assistantDays: [1, 2, 3, 4, 5], dartBoard: false, updateMode: 'ask', usageMeter: true, usageInterval: 10, usageShow: 'remaining', location: 'office', seasonal: true };
   let settings = { ...DEFAULTS };
   try { settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* keep defaults */ }
   // The paw that hid the animals is gone; Settings > Appearance turns them on
   // and off. Animals hidden with it come back, or there is no way to get them.
   settings.petsHidden = false;
+  // A species that is gone (or a typo in OFFICE_DEV_SETTINGS) is the theme's bird.
+  const speciesId = (id) => window.pipiSpecies?.byId(id).id ?? DEFAULTS.pipiSpecies;
+  settings.pipiSpecies = speciesId(settings.pipiSpecies);
 
   function save() { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
 
@@ -21,8 +24,10 @@
     window.officeSidebar?.setVisible(settings.sidebar);
     window.officeBird?.setDartBoard?.(!!settings.dartBoard);
     syncLocation();
+    window.officeBird?.setSpecies?.(settings.pipiSpecies);
     window.officeTerminal?.layoutChanged?.();
     window.officeRerender?.();
+    window.officeUsageView?.setShow?.(usageShow());
     syncAssistantName();
     syncForm();
     syncMain();
@@ -50,12 +55,20 @@
   }
 
   function set(patch) {
-    Object.assign(settings, patch); save(); apply();
+    Object.assign(settings, patch);
+    if ('pipiSpecies' in patch) settings.pipiSpecies = speciesId(settings.pipiSpecies);
+    save(); apply();
     if ('assistant' in patch || 'morning' in patch || 'assistantName' in patch || 'assistantDays' in patch) pushAssistant();
+    if ('usageMeter' in patch || 'usageInterval' in patch) pushUsage();
   }
   // getDay() numbers, 0 is Sunday; main cleans them up again with assistantDays().
   const days = () => (Array.isArray(settings.assistantDays) ? settings.assistantDays : DEFAULTS.assistantDays);
   // The assistant's clock runs in main; it keeps its own copy of these.
+  // main polls the CLIs; it only needs to know whether and how often.
+  // The same choices main accepts (usage.js cleanInterval), so the select never shows blank.
+  const usageInterval = () => ([5, 10, 15, 30].includes(Number(settings.usageInterval)) ? Number(settings.usageInterval) : DEFAULTS.usageInterval);
+  const usageShow = () => (settings.usageShow === 'used' ? 'used' : 'remaining');
+  const pushUsage = () => window.office.usage?.configure({ enabled: settings.usageMeter !== false, interval: usageInterval() });
   const pushAssistant = () => window.office.assistant?.configure({ enabled: settings.assistant, morning: settings.morning, name: settings.assistantName, days: days() });
   // Same rule as assistantName() in assistant.js: one line, 24 characters, PiPi when empty.
   const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24).trim() || DEFAULTS.assistantName;
@@ -83,7 +96,9 @@
     for (const r of $pop.querySelectorAll('input[name=termLayout]')) r.checked = r.value === settings.termLayout;
     for (const r of $pop.querySelectorAll('input[name=sidebar]')) r.checked = r.value === (settings.sidebar ? 'on' : 'off');
     for (const r of $pop.querySelectorAll('input[name=mode]')) r.checked = r.value === settings.mode;
+    for (const r of $pop.querySelectorAll('input[name=updateMode]')) r.checked = r.value === (settings.updateMode === 'auto' ? 'auto' : 'ask');
     renderThemes();
+    renderSpecies();
     const $qa = $pop.querySelector('#set-qa'); if ($qa) $qa.checked = !!settings.qa;
     const $as = $pop.querySelector('#set-assistant'); if ($as) $as.checked = settings.assistant !== false;
     const $an = $pop.querySelector('#set-assistant-name'); if ($an && document.activeElement !== $an) $an.value = settings.assistantName;
@@ -94,6 +109,9 @@
     const $snd = $pop.querySelector('#set-alert-sound'); if ($snd) $snd.checked = settings.alertSound !== false;
     const $cats = $pop.querySelector('#set-cats'); if ($cats) $cats.checked = !!settings.cats;
     const $dogs = $pop.querySelector('#set-dogs'); if ($dogs) $dogs.checked = !!settings.dogs;
+    const $usage = $pop.querySelector('#set-usage'); if ($usage) $usage.checked = settings.usageMeter !== false;
+    const $ui = $pop.querySelector('#set-usage-interval'); if ($ui) { $ui.value = String(usageInterval()); $ui.disabled = settings.usageMeter === false; }
+    const $us = $pop.querySelector('#set-usage-show'); if ($us) { $us.value = usageShow(); $us.disabled = settings.usageMeter === false; }
     const $auto = $pop.querySelector('#set-herdr-autostart'); if ($auto) $auto.checked = settings.herdrAutostart !== false;
     const $ed = $pop.querySelector('#set-editor'); if ($ed && document.activeElement !== $ed) $ed.value = settings.editor || '';
     // Leave the box alone while it is being typed in; it is read on change.
@@ -151,14 +169,40 @@
     $pop.querySelector('#set-seasonal-row')?.classList.toggle('disabled', !on);
     const $seasonal = $pop.querySelector('#set-seasonal'); if ($seasonal) { $seasonal.checked = settings.seasonal !== false; $seasonal.disabled = !on; }
   }
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // A card per kind of bird, PiPi standing as it does in the office; Theme
+  // in the accent color on screen. Built once the PiPi section shows, so a
+  // launch doesn't paint 17 previews nobody looks at.
+  function renderSpecies() {
+    const $grid = $pop.querySelector('#set-species'); if (!$grid || !window.pipiSpecies || !window.pipiSprite) return;
+    if ($pop.hidden || $grid.closest('.settings-section')?.hidden) return;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    const html = window.pipiSpecies.SPECIES.map((sp) => `<button class="theme-card species-card ${sp.id === settings.pipiSpecies ? 'active' : ''}" data-species="${esc(sp.id)}" title="${esc(sp.latin ? `${sp.name} (${sp.latin}): ${sp.note}` : sp.note)}">
+        <img class="species-pv" alt="" src="${speciesPreview(sp, accent)}">
+        <span class="theme-name">${esc(sp.name)}</span>
+      </button>`).join('');
+    if ($grid._html !== html) { $grid._html = html; $grid.innerHTML = html; }
+  }
+  const previews = new Map();
+  function speciesPreview(sp, accent) {
+    const key = sp.palette ? sp.id : `${sp.id} ${accent}`;
+    if (previews.has(key)) return previews.get(key);
+    const { pipiFrame, SIZE } = window.pipiSprite;
+    const pal = sp.palette || window.pipiSpecies.themePalette(window.pipiSpecies.rgb(accent));
+    const c = document.createElement('canvas');
+    c.width = c.height = SIZE;
+    const g = c.getContext('2d');
+    pipiFrame({}, sp.look).forEach((row, y) => row.forEach((k, x) => { if (k) { g.fillStyle = pal[k]; g.fillRect(x, y, 1, 1); } }));
+    previews.set(key, c.toDataURL());
+    return previews.get(key);
+  }
   function showSection(name) {
     for (const $t of $pop.querySelectorAll('.settings-tab')) $t.classList.toggle('active', $t.dataset.section === name);
     for (const $s of $pop.querySelectorAll('.settings-section')) $s.hidden = $s.dataset.section !== name;
+    renderSpecies();
   }
-  const open = (section) => {
-    if ($pop.querySelector(`.settings-section[data-section="${section}"]`)) showSection(section);
-    $pop.hidden = false;
-  };
+  // section: appearance | hq | assistant | agents | general; anything else keeps the one showing.
+  const open = (section) => { if ($pop.querySelector(`.settings-tab[data-section="${section}"]`)) showSection(section); $pop.hidden = false; renderSpecies(); };
   const close = () => { $pop.hidden = true; };
   $btn?.addEventListener('click', () => ($pop.hidden ? open() : close()));
   // A click on the dimmed backdrop closes it, a click in the window does not.
@@ -167,6 +211,7 @@
   $pop?.querySelector('.settings-nav')?.addEventListener('click', (e) => { const $t = e.target.closest('.settings-tab'); if ($t) showSection($t.dataset.section); });
   $pop?.querySelector('#set-styles')?.addEventListener('click', (e) => { const $t = e.target.closest('.style-card'); if ($t) set({ style: $t.dataset.styleId }); });
   $pop?.querySelector('#set-locations')?.addEventListener('click', (e) => { const $t = e.target.closest('.loc-card'); if ($t) set({ location: $t.dataset.location }); });
+  $pop?.querySelector('#set-species')?.addEventListener('click', (e) => { const $t = e.target.closest('.species-card'); if ($t) set({ pipiSpecies: $t.dataset.species }); });
   $pop?.querySelector('#set-themes')?.addEventListener('click', (e) => { const $t = e.target.closest('.theme-card'); if ($t) set({ theme: $t.dataset.theme }); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$pop.hidden) close(); });
   // System mode follows the OS as it switches.
@@ -177,6 +222,7 @@
     if (e.target.name === 'termLayout') set({ termLayout: e.target.value });
     if (e.target.name === 'sidebar') set({ sidebar: e.target.value === 'on' });
     if (e.target.name === 'mode') set({ mode: e.target.value });
+    if (e.target.name === 'updateMode') { set({ updateMode: e.target.value }); window.officeUpdates?.modeChanged(); }
     if (e.target.id === 'set-assistant') set({ assistant: e.target.checked });
     if (e.target.id === 'set-dartboard') set({ dartBoard: e.target.checked });
     if (e.target.id === 'set-seasonal') set({ seasonal: e.target.checked });
@@ -187,6 +233,9 @@
     if (e.target.id === 'set-cats') set({ cats: e.target.checked, ...(e.target.checked ? { petsHidden: false } : {}) });
     if (e.target.id === 'set-dogs') set({ dogs: e.target.checked, ...(e.target.checked ? { petsHidden: false } : {}) });
     if (e.target.id === 'set-herdr-autostart') set({ herdrAutostart: e.target.checked });
+    if (e.target.id === 'set-usage') set({ usageMeter: e.target.checked });
+    if (e.target.id === 'set-usage-interval') set({ usageInterval: Number(e.target.value) });
+    if (e.target.id === 'set-usage-show') set({ usageShow: e.target.value === 'used' ? 'used' : 'remaining' });
     if (e.target.id === 'set-qa') { set({ qa: e.target.checked }); window.office.orchestrator?.setQa?.(e.target.checked); }
   });
   $pop?.querySelector('#set-morning')?.addEventListener('change', (e) => { if (/^\d\d:\d\d$/.test(e.target.value)) set({ morning: e.target.value }); });
@@ -205,4 +254,5 @@
   window.officeSettings = { get: () => ({ ...settings }), assistantName: () => cleanName(settings.assistantName), defaults: { ...DEFAULTS }, set, apply, openPopover: open };
   apply();
   pushAssistant();
+  pushUsage();
 })();

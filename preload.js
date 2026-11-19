@@ -72,6 +72,11 @@ contextBridge.exposeInMainWorld('office', {
     remove: (args) => ipcRenderer.invoke('worktree-remove', args),
     removePath: (args) => ipcRenderer.invoke('worktree-remove-path', args),
   },
+  usage: {
+    configure: (patch) => ipcRenderer.invoke('usage-configure', patch),
+    refresh: () => ipcRenderer.invoke('usage-refresh'),
+    onChange: (cb) => { const h = (_e, view) => cb(view); ipcRenderer.on('usage', h); return () => ipcRenderer.removeListener('usage', h); },
+  },
   devSettings: () => ipcRenderer.invoke('dev-settings-get'),
   devTriggers: () => ipcRenderer.invoke('dev-triggers-get'),
   clipboardPeek: () => ipcRenderer.invoke('clipboard-peek'),
@@ -86,6 +91,16 @@ contextBridge.exposeInMainWorld('office', {
     rename: (args) => ipcRenderer.invoke('pane-rename', args),
     processInfo: (args) => ipcRenderer.invoke('pane-process-info', args),
     startAgent: (args) => ipcRenderer.invoke('agent-start', args),
+  },
+  ready: () => ipcRenderer.send('renderer-ready'),
+  updates: {
+    get: () => ipcRenderer.invoke('update-get'),
+    check: () => ipcRenderer.invoke('update-check'),
+    apply: (target, opts) => ipcRenderer.invoke('update-apply', { target, keepPending: !!opts?.keepPending }),
+    restart: () => ipcRenderer.invoke('update-restart'),
+    later: () => ipcRenderer.invoke('update-later'),
+    dismiss: () => ipcRenderer.invoke('update-dismiss'),
+    onState: (cb) => { const h = (_e, s) => cb(s); ipcRenderer.on('update-state', h); return () => ipcRenderer.removeListener('update-state', h); },
   },
   term: {
     open: (opts) => ipcRenderer.invoke('term-open', opts),
